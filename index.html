@@ -1,185 +1,283 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>L V Spices — CAPA Register</title>
-  <meta name="description" content="Corrective and Preventive Action Register for L V Spices — FSSAI Compliant"/>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="css/style.css"/>
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+  <meta name="description" content="L V Spices CAPA Register — Corrective and Preventive Action Tracking System." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <link rel="icon" type="image/jpeg" href="assets/lv_spices_logo.jpg" />
+  <link rel="stylesheet" href="css/app.css" />
 </head>
 <body>
 
-  <!-- ADD/EDIT MODAL -->
-  <div id="capa-modal" class="modal-overlay" style="display:none;">
-    <div class="modal-box modal-wide">
-      <div class="modal-header">
-        <h3 class="modal-title" id="m-modal-title">Add CAPA Record</h3>
-        <button class="modal-close" onclick="closeModal()">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-row-3">
-          <div class="form-group">
-            <label>Date</label>
-            <input type="date" id="m-date" class="form-control"/>
-          </div>
-          <div class="form-group">
-            <label>Area / Process</label>
-            <select id="m-area" class="form-control"></select>
-          </div>
-          <div class="form-group">
-            <label>Product Name</label>
-            <select id="m-product" class="form-control"></select>
-          </div>
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- ADD / EDIT MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box modal-wide">
+    <div class="modal-header">
+      <h3 id="modal-title">New CAPA Entry</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row-3">
+        <div class="form-row">
+          <label>Date *</label>
+          <input type="date" id="m-date" />
         </div>
-        <div class="form-row-2">
-          <div class="form-group">
-            <label>Batch / Lot No.</label>
-            <input type="text" id="m-batch" class="form-control" placeholder="e.g. BT-260410234"/>
-          </div>
-          <div class="form-group">
-            <label>Responsible Person</label>
-            <select id="m-responsible" class="form-control"></select>
-          </div>
+        <div class="form-row">
+          <label>Area / Process</label>
+          <select id="m-area"></select>
         </div>
-        <div class="form-group">
-          <label>Non-Conformity / Problem Observed</label>
-          <textarea id="m-nc" class="form-control form-textarea" rows="2" placeholder="Describe the problem or non-conformity observed..."></textarea>
-        </div>
-        <div class="form-group">
-          <label>Immediate Corrective Action (What was done)</label>
-          <textarea id="m-immediate" class="form-control form-textarea" rows="2" placeholder="Describe the immediate action taken..."></textarea>
-        </div>
-        <div class="form-row-2">
-          <div class="form-group">
-            <label>Root Cause (Why it happened)</label>
-            <textarea id="m-root" class="form-control form-textarea" rows="2" placeholder="Why did this happen?"></textarea>
-          </div>
-          <div class="form-group">
-            <label>Preventive Action (To avoid recurrence)</label>
-            <textarea id="m-preventive" class="form-control form-textarea" rows="2" placeholder="Steps to prevent recurrence..."></textarea>
-          </div>
-        </div>
-        <div class="form-row-2">
-          <div class="form-group">
-            <label>Verification / Closure</label>
-            <select id="m-verification" class="form-control"></select>
-          </div>
+        <div class="form-row">
+          <label>Product Name</label>
+          <select id="m-product"></select>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-        <button class="btn-save" onclick="saveEntry()">Save CAPA</button>
+      <div class="form-row-2">
+        <div class="form-row">
+          <label>Batch / Lot No.</label>
+          <input type="text" id="m-batch" placeholder="e.g. BT-260410234" />
+        </div>
+        <div class="form-row">
+          <label>Responsible Person</label>
+          <select id="m-responsible"></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Non-Conformity / Problem Observed *</label>
+        <textarea id="m-nc" rows="2" placeholder="Describe the problem or non-conformity..."></textarea>
+      </div>
+      <div class="form-row">
+        <label>Immediate Corrective Action (What was done)</label>
+        <textarea id="m-immediate" rows="2" placeholder="Describe the immediate corrective action taken..."></textarea>
+      </div>
+      <div class="form-row-2">
+        <div class="form-row">
+          <label>Root Cause (Why it happened)</label>
+          <textarea id="m-root" rows="2" placeholder="Why did this happen?"></textarea>
+        </div>
+        <div class="form-row">
+          <label>Preventive Action (To avoid recurrence)</label>
+          <textarea id="m-preventive" rows="2" placeholder="Steps to prevent recurrence..."></textarea>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div class="form-row">
+          <label>Verification / Closure</label>
+          <select id="m-verification"></select>
+        </div>
+        <div class="form-row">
+          <label>Closing Date</label>
+          <input type="date" id="m-closing" />
+        </div>
       </div>
     </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveEntry()">Save CAPA</button>
+    </div>
   </div>
+</div>
+
+<div class="app-container">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo-wrap">
+        <img src="assets/lv_spices_logo.jpg" alt="L V Spices Logo" class="brand-logo-img" />
+      </div>
+      <div class="brand-text">
+        <h1>L V SPICES</h1>
+        <span>CAPA REGISTER</span>
+      </div>
+      <button class="sidebar-close-btn" onclick="closeSidebar()">✕</button>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="sidebar-nav">
+      <a class="nav-item active" href="javascript:void(0)" onclick="switchView('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+          <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-item" href="javascript:void(0)" onclick="switchView('records')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+          <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+        </svg>
+        <span>CAPA Records</span>
+      </a>
+    </nav>
+
+    <!-- Month filter in sidebar -->
+    <div class="sidebar-section-lbl">FILTER BY MONTH</div>
+    <div class="sidebar-month-list" id="sidebar-month-list"></div>
+
+    <!-- Decorative Spice Image -->
+    <div class="sidebar-spice-wrap">
+      <img src="assets/sidebar-spices.png" alt="Decorative Spices" class="sidebar-spice-img" />
+    </div>
+  </aside>
 
   <!-- MAIN WRAPPER -->
-  <div class="page-wrap">
+  <div class="main-wrapper">
 
-    <!-- TOPBAR -->
+    <!-- TOP HEADER -->
     <header class="topbar">
-      <div class="topbar-left">
-        <div class="brand-logo-box">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-        </div>
+      <div class="header-title-wrap">
+        <button class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Toggle Menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
         <div>
-          <h1 class="page-title">CAPA <span class="title-red">Register</span></h1>
-          <p class="page-subtitle">Corrective &amp; Preventive Action Register • For Spices Blending, Repacking &amp; Storage</p>
+          <h1 class="page-title">CAPA <span class="title-highlight">Register</span></h1>
+          <div class="page-subtitle">
+            <span>Corrective &amp; Preventive Action • Spices Blending, Repacking &amp; Storage</span>
+            <span class="leaf-icon">🍃</span>
+          </div>
         </div>
       </div>
-      <div class="topbar-right">
-        <div class="cloud-badge connected" id="cloud-status-badge">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><polyline points="8 14 11 17 16 11"/></svg>
-          <span id="cloud-status-text">Cloud Synced</span>
+
+      <div class="header-actions">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="capa-search-input" placeholder="Search by area, product or batch..." oninput="onSearchChange(this.value)" />
         </div>
-        <button class="btn-topbar-action" onclick="openAddModal()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          + New CAPA
-        </button>
-        <button class="btn-topbar-export" onclick="exportToExcel()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Export Excel
-        </button>
-        <button class="btn-topbar-print" onclick="printLog()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-          Print
+        <button class="btn-new-complaint" onclick="openAddModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15" height="15">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>+ New CAPA</span>
         </button>
       </div>
     </header>
 
-    <!-- KPI ROW -->
-    <div class="kpi-row">
-      <div class="kpi-card kpi-red">
-        <div class="kpi-icon-w"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><path d="M9 12l2 2 4-4"/><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
-        <div><div class="kpi-val" id="kpi-total">—</div><div class="kpi-lbl">Total CAPA Records</div></div>
-      </div>
-      <div class="kpi-card kpi-blue">
-        <div class="kpi-icon-w"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
-        <div><div class="kpi-val" id="kpi-month">—</div><div class="kpi-lbl">This Month</div></div>
-      </div>
-      <div class="kpi-card kpi-green">
-        <div class="kpi-icon-w"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg></div>
-        <div><div class="kpi-val" id="kpi-closed">—</div><div class="kpi-lbl">Closed/Verified</div></div>
-      </div>
-      <div class="kpi-card kpi-amber">
-        <div class="kpi-icon-w"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
-        <div><div class="kpi-val" id="kpi-persons">—</div><div class="kpi-lbl">Responsible Persons</div></div>
-      </div>
-    </div>
-
-    <!-- MONTH TABS -->
-    <div class="month-tabs-bar" id="month-tabs"></div>
-
-    <!-- TABLE SECTION -->
-    <div class="table-wrap">
-      <div class="table-header-bar">
-        <div class="table-title-block">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-          CAPA Entries — <span id="active-month-label"></span>
+    <!-- STATS CARDS BAR -->
+    <section class="stats-bar">
+      <div class="stats-card card-pink">
+        <div class="stat-icon-square icon-pink">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+            <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
         </div>
-        <button class="btn-add-table" onclick="openAddModal()">+ Add CAPA</button>
+        <div class="stat-content">
+          <div class="stat-number" id="stat-total">—</div>
+          <div class="stat-label">Total CAPA Records</div>
+        </div>
+        <svg class="stat-wave wave-pink" viewBox="0 0 120 40" preserveAspectRatio="none">
+          <path d="M0,25 C30,35 60,10 90,20 C105,25 115,15 120,10 L120,40 L0,40 Z"></path>
+        </svg>
       </div>
 
-      <div class="table-scroll">
-        <table class="capa-table">
-          <thead>
-            <tr>
-              <th class="th-sr">Sr.<br/>No.</th>
-              <th class="th-date">Date</th>
-              <th class="th-area">Area / Process</th>
-              <th class="th-product">Product<br/>Name</th>
-              <th class="th-batch">Batch /<br/>Lot No.</th>
-              <th class="th-nc">Non-Conformity /<br/>Problem Observed</th>
-              <th class="th-action">Immediate Corrective<br/>Action (What was done)</th>
-              <th class="th-root">Root Cause<br/>(Why it happened)</th>
-              <th class="th-prevent">Preventive Action<br/>(To avoid recurrence)</th>
-              <th class="th-person">Responsible<br/>Person</th>
-              <th class="th-verify">Verification /<br/>Closure</th>
-              <th class="th-edit">Edit</th>
-            </tr>
-          </thead>
-          <tbody id="capa-tbody">
-            <tr><td colspan="12" class="empty-cell">Loading...</td></tr>
-          </tbody>
-        </table>
+      <div class="stats-card card-mint">
+        <div class="stat-icon-square icon-mint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <div class="stat-number" id="stat-closed">—</div>
+          <div class="stat-label">Closed / Verified</div>
+        </div>
+        <svg class="stat-wave wave-mint" viewBox="0 0 120 40" preserveAspectRatio="none">
+          <path d="M0,25 C30,35 60,10 90,20 C105,25 115,15 120,10 L120,40 L0,40 Z"></path>
+        </svg>
       </div>
-    </div>
 
-  </div><!-- /page-wrap -->
+      <div class="stats-card card-blue">
+        <div class="stat-icon-square icon-blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <div class="stat-number" id="stat-this-month">—</div>
+          <div class="stat-label">This Month</div>
+        </div>
+        <svg class="stat-wave wave-blue" viewBox="0 0 120 40" preserveAspectRatio="none">
+          <path d="M0,25 C30,35 60,10 90,20 C105,25 115,15 120,10 L120,40 L0,40 Z"></path>
+        </svg>
+      </div>
 
-  <script type="module" src="js/app.js"></script>
-  <script>
-    // Update active month label (non-module)
-    function updateMonthLabel() {
-      const MONTH_DISPLAY = {
-        'APRIL':'April 2026','MAY':'May 2026','JUNE':'June 2026','JULY':'July 2026',
-        'AUG':'Aug 2026','SEP':'Sep 2026','OCT':'Oct 2026','NOV':'Nov 2026','DEC':'Dec 2026'
-      };
-    }
-  </script>
+      <div class="stats-card card-orange">
+        <div class="stat-icon-square icon-orange">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <div class="stat-number" id="stat-persons">—</div>
+          <div class="stat-label">Responsible Persons</div>
+        </div>
+        <svg class="stat-wave wave-orange" viewBox="0 0 120 40" preserveAspectRatio="none">
+          <path d="M0,25 C30,35 60,10 90,20 C105,25 115,15 120,10 L120,40 L0,40 Z"></path>
+        </svg>
+      </div>
+    </section>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+      <div class="table-card">
+        <div class="table-card-header">
+          <div class="table-card-title">
+            <span class="title-icon-red">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+              </svg>
+            </span>
+            <h2>CAPA Register • Monthly Audit Log <span class="active-month-lbl" id="active-month-lbl"></span></h2>
+          </div>
+          <button class="btn-download-excel" onclick="exportExcel()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            <span>Download Excel</span>
+          </button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width:44px;text-align:center;">SR.</th>
+                <th>DATE</th>
+                <th>AREA / PROCESS</th>
+                <th>PRODUCT &amp; BATCH</th>
+                <th>NON-CONFORMITY / PROBLEM</th>
+                <th>IMMEDIATE CORRECTIVE ACTION</th>
+                <th>ROOT CAUSE</th>
+                <th>PREVENTIVE ACTION</th>
+                <th>RESPONSIBLE</th>
+                <th>VERIFICATION</th>
+                <th>EDIT</th>
+              </tr>
+            </thead>
+            <tbody id="capa-tbody">
+              <tr><td colspan="11" class="empty-row">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script type="module" src="js/app.js"></script>
 </body>
 </html>

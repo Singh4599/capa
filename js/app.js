@@ -1,31 +1,30 @@
 // app.js — LV Spices CAPA Register
-// Table style (like vehicle cleaning): month tabs + table view
-// 1 CAPA entry per month from April 2026 to today
+// Customer-Complaint-style UI: sidebar nav + full table + wave stat cards
 
 import { saveRecord, loadAllRecords, updateCloudBadge } from './firebase-config.js';
 
-// ── 20 NON-CONFORMITY REASONS (for auto-generation only, NOT shown in UI) ──
+// ── 20 NC REASONS (for auto-generation only — NOT shown as predefined in UI) ─
 const NC_REASONS = [
   'Raw material bag found open or not properly closed',
-  'Foreign matter (stones, sticks, insects, etc.) found in raw material',
+  'Foreign matter (stones, sticks, insects) found in raw material',
   'Wrong raw material used in blending',
-  'Incorrect blending ratio',
-  'Machine / mixer not cleaned properly',
+  'Incorrect blending ratio used',
+  'Machine / mixer not cleaned properly before use',
   'Previous product residue found in equipment',
-  'Incorrect product label (wrong name, weight, date, etc.)',
-  'Missing or unlabelled packages',
+  'Incorrect product label (wrong name, weight, date)',
+  'Missing or unlabelled packages found',
   'Wrong net weight in packed product',
   'Damaged or leaking packaging material',
   'Expired raw material used',
   'Improper storage conditions (moisture, heat, direct sunlight)',
-  'Pest signs (insects, rodents, droppings) found in storage area',
+  'Pest signs (insects, rodents) found in storage area',
   'Workers not wearing required PPE (hair cap, mask, gloves, apron)',
-  'Poor personal hygiene (unclean hands, nails, etc.)',
+  'Poor personal hygiene (unclean hands, nails)',
   'Unclean work surface or handling tools',
   'Cross-contamination between different spices',
   'Improper waste disposal / open waste bins',
   'Temperature / humidity outside recommended limit',
-  'Inadequate supervision or lack of training of staff'
+  'Inadequate supervision or lack of staff training'
 ];
 
 const AREAS = [
@@ -34,28 +33,29 @@ const AREAS = [
   'Loading & Dispatch', 'Raw Material Receiving'
 ];
 
-const PRODUCTS_CAPA = [
+const PRODUCTS = [
   'Turmeric Powder', 'Red Chilli Powder', 'Coriander Powder', 'Cumin Seeds',
-  'Garam Masala', 'Black Pepper Powder', 'Mustard Seeds', 'Mixed Masala'
+  'Garam Masala', 'Black Pepper Powder', 'Mustard Seeds', 'Mixed Masala',
+  'Fennel Seeds', 'Cardamom Powder', 'Dry Ginger Powder', 'Kashmiri Chilli Powder'
 ];
 
 const IMMEDIATE_ACTIONS = [
   'Product batch quarantined and re-checked immediately.',
-  'Equipment cleaned and sanitized before restart.',
+  'Equipment cleaned and sanitized thoroughly before restart.',
   'Labelling corrected and re-applied on all affected units.',
   'Faulty stock segregated and disposed as per FSSAI norms.',
-  'Work halted; supervisor informed; corrective action taken.',
+  'Work halted; supervisor informed; corrective action taken on site.',
   'Re-weighing of entire batch done; records updated.',
-  'Storage area thoroughly cleaned and pest treated.',
+  'Storage area thoroughly cleaned and pest treatment done.',
   'Workers counselled and PPE issued immediately.',
   'Product returned to supplier with rejection note.',
-  'Cleaning schedule enforced immediately for all equipment.'
+  'Full cleaning schedule enforced for all equipment.'
 ];
 
 const ROOT_CAUSES = [
   'Lack of operator awareness on FSSAI hygiene standards.',
   'Inadequate supervision during production shift.',
-  'Equipment maintenance schedule not followed properly.',
+  'Equipment maintenance schedule not followed.',
   'Training gap among workers on GMP procedures.',
   'Storage area not inspected as per schedule.',
   'Raw material quality not checked at receiving stage.',
@@ -78,97 +78,87 @@ const PREVENTIVE_ACTIONS = [
   'New worker induction checklist added with GMP module.'
 ];
 
-const RESPONSIBLE_PERSONS = ['Rajesh Sharma', 'Vishal Chaturvedi', 'Mukesh Vora', 'Vinod Singh'];
+const RESPONSIBLE = ['BHIMLAL SHARMA', 'Vishal Chaturvedi', 'Mukesh Vora', 'Vinod Singh'];
 const VERIFICATIONS = ['Closed', 'Verified & Closed', 'Completed', 'Reviewed & Closed'];
 
-// ── STATE ─────────────────────────────────────────────────────────────────────
-let records = [];
+// ✅ LIFETIME: Dynamically builds month list from April 2026 → current month
+// No hardcoded list — auto-extends every month forever
+const MONTH_NAMES_SHORT = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+const MONTH_NAMES_FULL  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function buildMonthList() {
+  const months = [];
+  const start = new Date(2026, 3, 1); // April 2026
+  const today = new Date();
+  let cur = new Date(start.getFullYear(), start.getMonth(), 1);
+  while (cur <= today) {
+    months.push({ yr: cur.getFullYear(), mo: cur.getMonth() + 1 });
+    cur.setMonth(cur.getMonth() + 1);
+  }
+  return months;
+}
+
+function monthKey(yr, mo) { return `${yr}-${String(mo).padStart(2,'0')}`; }
+function monthDisplay(yr, mo) { return `${MONTH_NAMES_FULL[mo-1]} ${yr}`; }
+function monthLabel(yr, mo) { return `${MONTH_NAMES_SHORT[mo-1]} ${yr}`; }
+
+let allRecords = [];
+let filteredRecords = [];
+let activeMonth = 'ALL';
+let searchQuery = '';
 let editingId = null;
 
-const MONTH_NAMES = ['APRIL','MAY','JUNE','JULY','AUG','SEP','OCT','NOV','DEC'];
-const MONTH_MAP = {
-  'APRIL':'2026-04','MAY':'2026-05','JUNE':'2026-06','JULY':'2026-07',
-  'AUG':'2026-08','SEP':'2026-09','OCT':'2026-10','NOV':'2026-11','DEC':'2026-12'
-};
-const MONTH_DISPLAY = {
-  'APRIL':'April 2026','MAY':'May 2026','JUNE':'June 2026','JULY':'July 2026',
-  'AUG':'Aug 2026','SEP':'Sep 2026','OCT':'Oct 2026','NOV':'Nov 2026','DEC':'Dec 2026'
-};
-
-function getCurrentMonthKey() {
-  const m = new Date().getMonth();
-  const keys = ['JAN','FEB','MAR','APRIL','MAY','JUNE','JULY','AUG','SEP','OCT','NOV','DEC'];
-  const cur = keys[m];
-  return MONTH_NAMES.includes(cur) ? cur : 'OCT';
-}
-
-let activeMonth = getCurrentMonthKey();
-
 function seedRng(seed) {
-  let s = seed;
-  return function() {
-    s = (s * 1664525 + 1013904223) & 0xffffffff;
-    return (s >>> 0) / 0xffffffff;
-  };
+  let s = seed; return () => { s=(s*1664525+1013904223)&0xffffffff; return (s>>>0)/0xffffffff; };
 }
+function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
 
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+// ── DATA GENERATION ───────────────────────────────────────────────────────────
+// ✅ LIFETIME: 1 CAPA per month, day derived from seed (unique per month),
+//    from April 2026 → current month. Auto-extends every new month.
 
-// ── DATA GENERATION (1 per month) ────────────────────────────────────────────
 function generateRecords() {
-  const generated = [];
-  const monthsToGenerate = ['APRIL','MAY','JUNE','JULY','AUG','SEP','OCT'];
-  const today = new Date();
-
-  let srNo = 1;
-  monthsToGenerate.forEach(monthKey => {
-    const prefix = MONTH_MAP[monthKey];
-    const [yr, mo] = prefix.split('-').map(Number);
-    const firstOfMonth = new Date(yr, mo-1, 5); // 5th of each month
-
-    // Don't generate future months
-    if (firstOfMonth > today) return;
-
-    const seed = yr * 1000 + mo * 10;
-    const rng = seedRng(seed);
-
-    const d = String(firstOfMonth.getDate()).padStart(2,'0');
-    const m = String(firstOfMonth.getMonth()+1).padStart(2,'0');
-    const dateStr = `${yr}-${m}-${d}`;
-    const displayDate = `${d}/${m}/${yr}`;
-
-    const ncIdx      = Math.floor(rng() * NC_REASONS.length);
-    const areaIdx    = Math.floor(rng() * AREAS.length);
-    const prodIdx    = Math.floor(rng() * PRODUCTS_CAPA.length);
-    const immIdx     = Math.floor(rng() * IMMEDIATE_ACTIONS.length);
-    const rootIdx    = Math.floor(rng() * ROOT_CAUSES.length);
-    const prevIdx    = Math.floor(rng() * PREVENTIVE_ACTIONS.length);
-    const respIdx    = Math.floor(rng() * RESPONSIBLE_PERSONS.length);
-    const verIdx     = Math.floor(rng() * VERIFICATIONS.length);
-    const batchNo    = `BT-${yr.toString().slice(2)}${m}${Math.floor(1000 + rng()*9000)}`;
-
-    generated.push({
+  const records = [];
+  const monthList = buildMonthList(); // dynamic — includes today's month
+  let sr = 1;
+  monthList.forEach(({ yr, mo }) => {
+    const rng = seedRng(yr * 1000 + mo * 37);
+    // Day: 3-25 seeded so each month has a distinct, stable date
+    const dayOfMonth = 3 + Math.floor(rng() * 22); // 3-24
+    const checkDate = new Date(yr, mo-1, dayOfMonth);
+    const today = new Date();
+    if (checkDate > today) return;
+    const mm = String(mo).padStart(2,'0');
+    const dd = String(dayOfMonth).padStart(2,'0');
+    const dateStr = `${yr}-${mm}-${dd}`;
+    const closeD = new Date(yr, mo-1, dayOfMonth + 10 + Math.floor(rng()*8));
+    const cyr = closeD.getFullYear();
+    const cmm = String(closeD.getMonth()+1).padStart(2,'0');
+    const cdd = String(closeD.getDate()).padStart(2,'0');
+    const closingDate = `${cyr}-${cmm}-${cdd}`;
+    records.push({
       id: `CAPA-${dateStr}`,
-      srNo: srNo++,
+      srNo: sr++,
       date: dateStr,
-      displayDate,
-      monthKey,
-      area: AREAS[areaIdx],
-      productName: PRODUCTS_CAPA[prodIdx],
-      batchLotNo: batchNo,
-      nonConformity: NC_REASONS[ncIdx],
-      immediateAction: IMMEDIATE_ACTIONS[immIdx],
-      rootCause: ROOT_CAUSES[rootIdx],
-      preventiveAction: PREVENTIVE_ACTIONS[prevIdx],
-      responsiblePerson: RESPONSIBLE_PERSONS[respIdx],
-      verification: VERIFICATIONS[verIdx],
+      displayDate: `${dd}/${mm}/${yr}`,
+      closingDate,
+      closingDateDisplay: `${cdd}/${cmm}/${cyr}`,
+      monthKey: monthKey(yr, mo),
+      monthDisplay: monthDisplay(yr, mo),
+      monthLabel: monthLabel(yr, mo),
+      area: AREAS[Math.floor(rng()*AREAS.length)],
+      productName: PRODUCTS[Math.floor(rng()*PRODUCTS.length)],
+      batchLotNo: `BT-${yr.toString().slice(2)}${mm}${Math.floor(1000+rng()*9000)}`,
+      nonConformity: NC_REASONS[Math.floor(rng()*NC_REASONS.length)],
+      immediateAction: IMMEDIATE_ACTIONS[Math.floor(rng()*IMMEDIATE_ACTIONS.length)],
+      rootCause: ROOT_CAUSES[Math.floor(rng()*ROOT_CAUSES.length)],
+      preventiveAction: PREVENTIVE_ACTIONS[Math.floor(rng()*PREVENTIVE_ACTIONS.length)],
+      responsiblePerson: RESPONSIBLE[Math.floor(rng()*RESPONSIBLE.length)],
+      verification: VERIFICATIONS[Math.floor(rng()*VERIFICATIONS.length)],
       isGenerated: true
     });
   });
-  return generated;
+  return records;
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
@@ -177,205 +167,275 @@ async function init() {
     const cloudData = await loadAllRecords();
     const cloudMap = {};
     cloudData.forEach(r => { cloudMap[r.id] = r; });
-    const generated = generateRecords();
-    generated.forEach(r => {
+    const gen = generateRecords();
+    gen.forEach(r => {
       if (!cloudMap[r.id]) cloudMap[r.id] = r;
       else cloudMap[r.id] = { ...r, ...cloudMap[r.id] };
     });
-    records = Object.values(cloudMap).sort((a,b) => a.date.localeCompare(b.date));
-    // Fix srNo
-    records.forEach((r, i) => r.srNo = i + 1);
+    allRecords = Object.values(cloudMap).sort((a,b) => a.date.localeCompare(b.date));
+    allRecords.forEach((r,i) => r.srNo = i+1);
   } catch(e) {
-    records = generateRecords();
+    allRecords = generateRecords();
   }
-  renderMonthTabs();
-  renderTable();
-  updateKPIs();
+  renderSidebarMonths();
+  applyFilter();
+  updateStats();
 }
 
-// ── MONTH TABS ────────────────────────────────────────────────────────────────
-function renderMonthTabs() {
-  const bar = document.getElementById('month-tabs');
-  if (!bar) return;
-  bar.innerHTML = MONTH_NAMES.map(m => `
-    <button class="month-tab ${m === activeMonth ? 'active' : ''}" onclick="setMonth('${m}')">${m}</button>
-  `).join('');
+// ── SIDEBAR MONTHS ────────────────────────────────────────────────────────────
+// ✅ LIFETIME: Built from actual records — no hardcoded list
+function renderSidebarMonths() {
+  const el = document.getElementById('sidebar-month-list');
+  if (!el) return;
+
+  // Collect unique month keys from records (format: YYYY-MM)
+  const seen = new Set();
+  const monthKeys = [];
+  [...allRecords].sort((a,b) => a.date.localeCompare(b.date)).forEach(r => {
+    if (!seen.has(r.monthKey)) { seen.add(r.monthKey); monthKeys.push(r.monthKey); }
+  });
+  monthKeys.reverse(); // newest first
+
+  const allBtn = `<button class="sidebar-month-btn ${activeMonth==='ALL'?'active':''}" onclick="filterMonth('ALL')">
+    All Months <span class="sidebar-month-count">${allRecords.length}</span>
+  </button>`;
+
+  const monthBtns = monthKeys.map(mk => {
+    const cnt = allRecords.filter(r => r.monthKey === mk).length;
+    if (!cnt) return '';
+    // Get display label from first matching record
+    const sample = allRecords.find(r => r.monthKey === mk);
+    const lbl = sample?.monthDisplay || mk;
+    return `<button class="sidebar-month-btn ${activeMonth===mk?'active':''}" onclick="filterMonth('${mk}')">
+      ${lbl} <span class="sidebar-month-count">${cnt}</span>
+    </button>`;
+  }).join('');
+
+  el.innerHTML = allBtn + monthBtns;
 }
 
-window.setMonth = function(m) {
-  activeMonth = m;
-  renderMonthTabs();
-  renderTable();
-  updateKPIs();
+window.filterMonth = function(mk) {
+  activeMonth = mk;
+  renderSidebarMonths();
+  applyFilter();
+  updateStats();
+  const lbl = document.getElementById('active-month-lbl');
+  if (lbl) {
+    if (mk === 'ALL') { lbl.textContent = 'All Months'; }
+    else {
+      const sample = allRecords.find(r => r.monthKey === mk);
+      lbl.textContent = sample?.monthDisplay || mk;
+    }
+  }
 };
 
-// ── TABLE RENDER ──────────────────────────────────────────────────────────────
-function getMonthRecords() {
-  const prefix = MONTH_MAP[activeMonth] || '2026-10';
-  return records.filter(r => r.date.startsWith(prefix));
+// ── FILTER ────────────────────────────────────────────────────────────────────
+function applyFilter() {
+  const q = searchQuery.toLowerCase();
+  filteredRecords = allRecords.filter(r => {
+    // monthKey is now 'YYYY-MM' format
+    const inMonth = activeMonth === 'ALL' || r.monthKey === activeMonth;
+    if (!q) return inMonth;
+    return inMonth && (
+      r.area?.toLowerCase().includes(q) ||
+      r.productName?.toLowerCase().includes(q) ||
+      r.batchLotNo?.toLowerCase().includes(q) ||
+      r.nonConformity?.toLowerCase().includes(q) ||
+      r.responsiblePerson?.toLowerCase().includes(q) ||
+      r.displayDate?.includes(q)
+    );
+  });
+  renderTable();
 }
 
+window.onSearchChange = function(v) { searchQuery = v; applyFilter(); };
+
+// ── TABLE ─────────────────────────────────────────────────────────────────────
 function renderTable() {
   const tbody = document.getElementById('capa-tbody');
   if (!tbody) return;
-  const monthRecs = getMonthRecords();
-
-  if (monthRecs.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="11" class="empty-cell">No CAPA records for ${activeMonth} 2026. <button class="btn-add-inline" onclick="openAddModal()">+ Add Record</button></td></tr>`;
+  if (!filteredRecords.length) {
+    tbody.innerHTML = `<tr><td colspan="11" class="empty-row">No CAPA records found. <a href="javascript:void(0)" onclick="openAddModal()" style="color:var(--brand-primary);font-weight:700;">+ Add New</a></td></tr>`;
     return;
   }
-
-  tbody.innerHTML = monthRecs.map(r => `
+  tbody.innerHTML = filteredRecords.map(r => `
     <tr>
-      <td class="td-sr">${r.srNo}</td>
-      <td class="td-date"><strong>${escapeHtml(r.displayDate)}</strong></td>
-      <td class="td-area"><span class="area-badge">${escapeHtml(r.area)}</span></td>
-      <td class="td-product">${escapeHtml(r.productName)}</td>
-      <td class="td-batch"><span class="batch-code">${escapeHtml(r.batchLotNo)}</span></td>
-      <td class="td-nc">${escapeHtml(r.nonConformity)}</td>
-      <td class="td-action">${escapeHtml(r.immediateAction)}</td>
-      <td class="td-root">${escapeHtml(r.rootCause)}</td>
-      <td class="td-prevent">${escapeHtml(r.preventiveAction)}</td>
-      <td class="td-person">${escapeHtml(r.responsiblePerson)}</td>
-      <td class="td-verify"><span class="verify-badge">${escapeHtml(r.verification)}</span></td>
-      <td class="td-edit">
-        <button class="edit-btn" onclick="openEditModal('${r.id}')">
+      <td style="text-align:center;font-weight:700;color:#94A3B8;font-size:13px;">${r.srNo}</td>
+      <td style="white-space:nowrap;font-weight:600;">${esc(r.displayDate)}</td>
+      <td><span class="area-badge">${esc(r.area)}</span></td>
+      <td>
+        <div style="font-weight:700;font-size:13px;">${esc(r.productName)}</div>
+        <span class="batch-pill">${esc(r.batchLotNo)}</span>
+      </td>
+      <td class="td-nc" style="color:var(--brand-primary);font-weight:600;">${esc(r.nonConformity)}</td>
+      <td class="td-action" style="color:#16A34A;">${esc(r.immediateAction)}</td>
+      <td class="td-root">${esc(r.rootCause)}</td>
+      <td class="td-prevent">${esc(r.preventiveAction)}</td>
+      <td style="font-weight:700;font-size:13px;">${esc(r.responsiblePerson)}</td>
+      <td><span class="verify-ok">${esc(r.verification)}</span></td>
+      <td>
+        <button class="btn-edit-row" onclick="openEditModal('${r.id}')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Edit
         </button>
       </td>
     </tr>
   `).join('');
 }
 
-// ── KPIs ──────────────────────────────────────────────────────────────────────
-function updateKPIs() {
-  const monthRecs = getMonthRecords();
+// ── STATS ─────────────────────────────────────────────────────────────────────
+function updateStats() {
   const el = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
-  el('kpi-total', records.length);
-  el('kpi-month', monthRecs.length);
-  el('kpi-closed', monthRecs.filter(r => r.verification && r.verification.toLowerCase().includes('clos')).length);
-  el('kpi-persons', new Set(monthRecs.map(r => r.responsiblePerson)).size);
+  const now = new Date();
+  const curMonthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`; // YYYY-MM
+  el('stat-total', allRecords.length);
+  el('stat-closed', allRecords.filter(r => r.verification?.toLowerCase().includes('clos') || r.verification?.toLowerCase().includes('complet')).length);
+  el('stat-this-month', allRecords.filter(r => r.monthKey === curMonthKey).length);
+  el('stat-persons', new Set(allRecords.map(r => r.responsiblePerson)).size);
+  const lbl = document.getElementById('active-month-lbl');
+  if (lbl) {
+    if (activeMonth === 'ALL') { lbl.textContent = 'All Months'; }
+    else {
+      const sample = allRecords.find(r => r.monthKey === activeMonth);
+      lbl.textContent = sample?.monthDisplay || activeMonth;
+    }
+  }
 }
 
-// ── MODALS ────────────────────────────────────────────────────────────────────
+// ── SIDEBAR NAV / TOGGLE ──────────────────────────────────────────────────────
+window.switchView = function(v) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  event.currentTarget?.classList?.add('active');
+};
+window.toggleSidebar = function() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+};
+window.closeSidebar = function() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+};
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
 function populateDropdowns() {
-  const areaEl = document.getElementById('m-area');
-  if (areaEl) areaEl.innerHTML = AREAS.map(a => `<option>${a}</option>`).join('');
-  const prodEl = document.getElementById('m-product');
-  if (prodEl) prodEl.innerHTML = PRODUCTS_CAPA.map(p => `<option>${p}</option>`).join('');
-  const respEl = document.getElementById('m-responsible');
-  if (respEl) respEl.innerHTML = RESPONSIBLE_PERSONS.map(p => `<option>${p}</option>`).join('');
-  const verEl = document.getElementById('m-verification');
-  if (verEl) verEl.innerHTML = VERIFICATIONS.map(v => `<option>${v}</option>`).join('');
+  const aEl = document.getElementById('m-area');
+  if (aEl) aEl.innerHTML = AREAS.map(a => `<option>${a}</option>`).join('');
+  const pEl = document.getElementById('m-product');
+  if (pEl) pEl.innerHTML = PRODUCTS.map(p => `<option>${p}</option>`).join('');
+  const rEl = document.getElementById('m-responsible');
+  if (rEl) rEl.innerHTML = RESPONSIBLE.map(r => `<option>${r}</option>`).join('');
+  const vEl = document.getElementById('m-verification');
+  if (vEl) vEl.innerHTML = VERIFICATIONS.map(v => `<option>${v}</option>`).join('');
 }
 
 window.openAddModal = function() {
   editingId = null;
   populateDropdowns();
-  const el = i => document.getElementById(i);
-  if (el('m-modal-title')) el('m-modal-title').textContent = 'Add CAPA Record';
-  if (el('m-date')) el('m-date').value = new Date().toISOString().split('T')[0];
-  if (el('m-batch')) el('m-batch').value = '';
-  if (el('m-nc')) el('m-nc').value = '';
-  if (el('m-immediate')) el('m-immediate').value = '';
-  if (el('m-root')) el('m-root').value = '';
-  if (el('m-preventive')) el('m-preventive').value = '';
-  document.getElementById('capa-modal').style.display = 'flex';
+  const g = id => document.getElementById(id);
+  if (g('modal-title')) g('modal-title').textContent = 'New CAPA Entry';
+  if (g('m-date')) g('m-date').value = new Date().toISOString().split('T')[0];
+  if (g('m-batch')) g('m-batch').value = '';
+  if (g('m-nc')) g('m-nc').value = '';
+  if (g('m-immediate')) g('m-immediate').value = '';
+  if (g('m-root')) g('m-root').value = '';
+  if (g('m-preventive')) g('m-preventive').value = '';
+  if (g('m-closing')) g('m-closing').value = '';
+  document.getElementById('modal-overlay').style.display = 'flex';
 };
 
 window.openEditModal = function(id) {
-  const rec = records.find(r => r.id === id);
+  const rec = allRecords.find(r => r.id === id);
   if (!rec) return;
   editingId = id;
   populateDropdowns();
-  const el = i => document.getElementById(i);
-  if (el('m-modal-title')) el('m-modal-title').textContent = 'Edit CAPA Record';
-  if (el('m-date')) el('m-date').value = rec.date;
-  if (el('m-area')) el('m-area').value = rec.area;
-  if (el('m-product')) el('m-product').value = rec.productName;
-  if (el('m-batch')) el('m-batch').value = rec.batchLotNo;
-  if (el('m-nc')) el('m-nc').value = rec.nonConformity;
-  if (el('m-immediate')) el('m-immediate').value = rec.immediateAction;
-  if (el('m-root')) el('m-root').value = rec.rootCause;
-  if (el('m-preventive')) el('m-preventive').value = rec.preventiveAction;
-  if (el('m-responsible')) el('m-responsible').value = rec.responsiblePerson;
-  if (el('m-verification')) el('m-verification').value = rec.verification;
-  document.getElementById('capa-modal').style.display = 'flex';
+  const g = i => document.getElementById(i);
+  if (g('modal-title')) g('modal-title').textContent = 'Edit CAPA Record';
+  if (g('m-date')) g('m-date').value = rec.date;
+  if (g('m-area')) g('m-area').value = rec.area;
+  if (g('m-product')) g('m-product').value = rec.productName;
+  if (g('m-batch')) g('m-batch').value = rec.batchLotNo;
+  if (g('m-nc')) g('m-nc').value = rec.nonConformity;
+  if (g('m-immediate')) g('m-immediate').value = rec.immediateAction;
+  if (g('m-root')) g('m-root').value = rec.rootCause;
+  if (g('m-preventive')) g('m-preventive').value = rec.preventiveAction;
+  if (g('m-responsible')) g('m-responsible').value = rec.responsiblePerson;
+  if (g('m-verification')) g('m-verification').value = rec.verification;
+  if (g('m-closing')) g('m-closing').value = rec.closingDate || '';
+  document.getElementById('modal-overlay').style.display = 'flex';
 };
 
 window.closeModal = function() {
-  document.getElementById('capa-modal').style.display = 'none';
+  document.getElementById('modal-overlay').style.display = 'none';
   editingId = null;
 };
 
 window.saveEntry = async function() {
-  const el = i => document.getElementById(i);
-  const dateVal = el('m-date')?.value;
-  if (!dateVal) { alert('Date is required'); return; }
-
-  const [yr,mo,dd] = dateVal.split('-');
-  const displayDate = `${dd}/${mo}/${yr}`;
+  const g = i => document.getElementById(i);
+  const dateVal = g('m-date')?.value;
+  if (!dateVal) { alert('Date required'); return; }
+  const [yr, mo, dd] = dateVal.split('-');
+  // mk is now 'YYYY-MM' format — compatible with filterMonth
+  const mk = `${yr}-${mo}`;
+  const cDate = g('m-closing')?.value || dateVal;
+  const [cyr,cmm,cdd] = cDate.split('-');
   const id = editingId || `CAPA-${dateVal}-${Date.now()}`;
 
   const record = {
-    id, date: dateVal, displayDate,
-    monthKey: activeMonth,
-    area: el('m-area')?.value || '',
-    productName: el('m-product')?.value || '',
-    batchLotNo: el('m-batch')?.value || '',
-    nonConformity: el('m-nc')?.value || '',
-    immediateAction: el('m-immediate')?.value || '',
-    rootCause: el('m-root')?.value || '',
-    preventiveAction: el('m-preventive')?.value || '',
-    responsiblePerson: el('m-responsible')?.value || '',
-    verification: el('m-verification')?.value || 'Closed',
+    id, srNo: 0, date: dateVal,
+    displayDate: `${dd}/${mo}/${yr}`,
+    closingDate: cDate,
+    closingDateDisplay: `${cdd}/${cmm}/${cyr}`,
+    monthKey: mk,
+    monthDisplay: (() => { const d=new Date(dateVal+'T00:00:00'); return ['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()]+' '+d.getFullYear(); })(),
+    area: g('m-area')?.value || '',
+    productName: g('m-product')?.value || '',
+    batchLotNo: g('m-batch')?.value || '',
+    nonConformity: g('m-nc')?.value || '',
+    immediateAction: g('m-immediate')?.value || '',
+    rootCause: g('m-root')?.value || '',
+    preventiveAction: g('m-preventive')?.value || '',
+    responsiblePerson: g('m-responsible')?.value || '',
+    verification: g('m-verification')?.value || 'Closed',
     isGenerated: false
   };
 
   if (editingId) {
-    const idx = records.findIndex(r => r.id === editingId);
-    if (idx !== -1) records[idx] = { ...records[idx], ...record };
+    const idx = allRecords.findIndex(r => r.id === editingId);
+    if (idx !== -1) allRecords[idx] = { ...allRecords[idx], ...record };
   } else {
-    records.push(record);
-    records.sort((a,b) => a.date.localeCompare(b.date));
-    records.forEach((r,i) => r.srNo = i+1);
+    allRecords.push(record);
+    allRecords.sort((a,b) => a.date.localeCompare(b.date));
+    allRecords.forEach((r,i) => r.srNo = i+1);
   }
 
   await saveRecord(record);
   closeModal();
-  renderTable();
-  updateKPIs();
+  renderSidebarMonths();
+  applyFilter();
+  updateStats();
 };
 
 // ── EXCEL EXPORT ──────────────────────────────────────────────────────────────
-window.exportToExcel = function() {
-  const monthRecs = getMonthRecords();
-  if (!monthRecs.length) { alert('No records for ' + activeMonth); return; }
-
-  const headers = [
-    'Sr.No','Date','Area / Process','Product Name','Batch / Lot No',
-    'Non-Conformity / Problem Observed','Immediate Corrective Action',
-    'Root Cause (Why it happened)','Preventive Action','Responsible Person',
-    'Verification / Closure'
-  ];
-  const data = [headers, ...monthRecs.map(r => [
+window.exportExcel = function() {
+  const rows = filteredRecords.length ? filteredRecords : allRecords;
+  if (!rows.length) { alert('No records to export'); return; }
+  const headers = ['Sr.No','Date','Area / Process','Product','Batch No','Non-Conformity',
+    'Immediate Action','Root Cause','Preventive Action','Responsible Person','Verification','Closing Date'];
+  const data = [headers, ...rows.map(r => [
     r.srNo, r.displayDate, r.area, r.productName, r.batchLotNo,
     r.nonConformity, r.immediateAction, r.rootCause, r.preventiveAction,
-    r.responsiblePerson, r.verification
+    r.responsiblePerson, r.verification, r.closingDateDisplay
   ])];
-
   const ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [6,12,18,16,12,32,28,28,28,18,16].map(w => ({ wch: w }));
+  ws['!cols'] = [5,11,18,16,12,30,26,26,26,16,14,11].map(w => ({wch:w}));
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, `CAPA ${activeMonth} 2026`);
-  XLSX.writeFile(wb, `LV_Spices_CAPA_Register_${activeMonth}_2026.xlsx`);
+  XLSX.utils.book_append_sheet(wb, ws, 'CAPA Register');
+  XLSX.writeFile(wb, `LV_Spices_CAPA_Register.xlsx`);
 };
 
-window.printLog = function() { window.print(); };
-
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('capa-modal')?.addEventListener('click', e => {
-    if (e.target.id === 'capa-modal') closeModal();
+  document.getElementById('modal-overlay')?.addEventListener('click', e => {
+    if (e.target.id === 'modal-overlay') closeModal();
   });
   init();
 });
