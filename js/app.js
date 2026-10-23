@@ -78,7 +78,7 @@ const PREVENTIVE_ACTIONS = [
   'New worker induction checklist added with GMP module.'
 ];
 
-const RESPONSIBLE = ['BHIMLAL SHARMA', 'Vishal Chaturvedi', 'Mukesh Vora', 'Vinod Singh'];
+const RESPONSIBLE = ['Bhimlal Sharma', 'Vishal Chaturvedi', 'Mukesh Vora', 'Vinod Singh'];
 const VERIFICATIONS = ['Closed', 'Verified & Closed', 'Completed', 'Reviewed & Closed'];
 
 // ✅ LIFETIME: Dynamically builds month list from April 2026 → current month
