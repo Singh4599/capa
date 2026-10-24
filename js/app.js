@@ -433,6 +433,107 @@ window.exportExcel = function() {
   XLSX.writeFile(wb, `LV_Spices_CAPA_Register.xlsx`);
 };
 
+window.printRegister = window.printPage = function() {
+  const data = (filteredRecords && filteredRecords.length) ? filteredRecords : allRecords;
+  if (!data || !data.length) {
+    alert('No CAPA records to print.');
+    return;
+  }
+  const rowH = Math.max(8, Math.floor(148 / data.length));
+  function esc(v) {
+    return v ? String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '—';
+  }
+  function verifyBadge(v) {
+    const vt = (v || '').toLowerCase();
+    if (vt.includes('clos') || vt.includes('complet')) {
+      return `<span style="background:#dcfce7;color:#15803d;border:1px solid #86efac;padding:1.5pt 4.5pt;border-radius:3pt;font-size:6.5pt;font-weight:700;white-space:nowrap;-webkit-print-color-adjust:exact;print-color-adjust:exact">${esc(v)}</span>`;
+    } else if (vt.includes('pend') || vt.includes('open')) {
+      return `<span style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;padding:1.5pt 4.5pt;border-radius:3pt;font-size:6.5pt;font-weight:700;white-space:nowrap;-webkit-print-color-adjust:exact;print-color-adjust:exact">${esc(v)}</span>`;
+    } else {
+      return `<span style="background:#fef3c7;color:#b45309;border:1px solid #fcd34d;padding:1.5pt 4.5pt;border-radius:3pt;font-size:6.5pt;font-weight:700;white-space:nowrap;-webkit-print-color-adjust:exact;print-color-adjust:exact">${esc(v)}</span>`;
+    }
+  }
+
+  const rowsHtml = data.map((r, i) => `<tr style="height:${rowH}mm;${i % 2 === 1 ? 'background:#f8fafc' : ''}">
+    <td style="text-align:center;font-weight:700;color:#64748b">${r.srNo || i + 1}</td>
+    <td style="white-space:nowrap">${esc(r.displayDate || r.date)}</td>
+    <td style="font-weight:700;color:#334155">${esc(r.area)}</td>
+    <td><b>${esc(r.productName)}</b><br><span style="font-size:6.5pt;color:#64748b">${esc(r.batchLotNo)}</span></td>
+    <td style="color:#b91c1c;font-weight:600">${esc(r.nonConformity)}</td>
+    <td style="color:#15803d">${esc(r.immediateAction)}</td>
+    <td style="color:#475569">${esc(r.rootCause)}</td>
+    <td style="color:#334155">${esc(r.preventiveAction)}</td>
+    <td style="font-weight:700;color:#0f172a">${esc(r.responsiblePerson)}</td>
+    <td style="text-align:center">${verifyBadge(r.verification)}</td>
+  </tr>`).join('');
+
+  const total = data.length;
+  const closed = data.filter(r => (r.verification || '').toLowerCase().includes('clos') || (r.verification || '').toLowerCase().includes('complet')).length;
+  const monthLbl = (typeof activeMonth !== 'undefined' && activeMonth !== 'ALL')
+    ? (allRecords.find(r => r.monthKey === activeMonth)?.monthDisplay || activeMonth)
+    : 'All Months';
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+<title>LV Spices — CAPA Register</title>
+<style>
+  @page{size:A4 landscape;margin:8mm}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{font-family:Arial,sans-serif;font-size:8pt;color:#000;background:#fff}
+  .hdr{border:2pt solid #000;padding:6pt 8pt;margin-bottom:6pt}
+  .hdr h1{font-size:13pt;font-weight:800;text-transform:uppercase;letter-spacing:0.5px}
+  .hdr p{font-size:7pt;color:#444;margin-top:2pt}
+  .pills{display:flex;gap:6pt;margin-top:5pt;flex-wrap:wrap}
+  .pill{border:1pt solid #555;padding:1.5pt 6pt;font-size:7pt;border-radius:3pt}
+  .pill b{color:#b91c1c}
+  table{width:100%;border-collapse:collapse;margin-top:5pt}
+  thead{display:table-header-group}
+  tr{page-break-inside:avoid}
+  th{background:#1a1a1a;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:7pt;padding:5pt 4pt;border:0.75pt solid #000;text-align:left}
+  td{font-size:7.5pt;padding:4pt;border:0.5pt solid #bbb;vertical-align:middle;line-height:1.25}
+  .sig{margin-top:14pt;font-size:8pt;display:flex;justify-content:space-between;padding:0 4pt}
+</style></head><body>
+<div class="hdr">
+  <h1>CAPA Register — L V Spices</h1>
+  <p>Corrective &amp; Preventive Action • Spices Blending, Repacking &amp; Storage • FSSAI Audit Log</p>
+  <div class="pills">
+    <span class="pill">🗓️ Printed: <b>${new Date().toLocaleDateString('en-IN')}</b></span>
+    <span class="pill">📅 Period: <b>${monthLbl}</b></span>
+    <span class="pill">📋 Total CAPA: <b>${total}</b></span>
+    <span class="pill">✅ Closed / Verified: <b style="color:#15803d">${closed}</b></span>
+  </div>
+</div>
+<table>
+  <thead><tr>
+    <th style="width:3.5%;text-align:center">SR.</th>
+    <th style="width:7%">DATE</th>
+    <th style="width:9%">AREA / PROCESS</th>
+    <th style="width:13%">PRODUCT &amp; BATCH</th>
+    <th style="width:16%">NON-CONFORMITY / PROBLEM</th>
+    <th style="width:16%">IMMEDIATE ACTION</th>
+    <th style="width:13%">ROOT CAUSE</th>
+    <th style="width:13%">PREVENTIVE ACTION</th>
+    <th style="width:7.5%">RESPONSIBLE</th>
+    <th style="width:7%;text-align:center">STATUS</th>
+  </tr></thead>
+  <tbody>${rowsHtml}</tbody>
+</table>
+<div class="sig">
+  <span><b>QA Manager / Plant Head:</b> &nbsp; ____________________</span>
+  <span><b>FSSAI Food Safety Supervisor:</b> &nbsp; ____________________</span>
+  <span><b>Date:</b> ${new Date().toLocaleDateString('en-IN')}</span>
+</div>
+<script>window.onload=function(){window.print();setTimeout(function(){window.close();},800);};<\/script>
+</body></html>`;
+
+  const pw = window.open('', '_blank', 'width=1200,height=850');
+  if (pw) {
+    pw.document.write(html);
+    pw.document.close();
+  } else {
+    alert('Please allow popups to print the A4 register.');
+  }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('modal-overlay')?.addEventListener('click', e => {
     if (e.target.id === 'modal-overlay') closeModal();
