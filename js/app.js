@@ -496,7 +496,6 @@ window.printRegister = window.printPage = function() {
   <h1>CAPA Register — L V Spices</h1>
   <p>Corrective &amp; Preventive Action • Spices Blending, Repacking &amp; Storage • FSSAI Audit Log</p>
   <div class="pills">
-    <span class="pill">🗓️ Printed: <b>${new Date().toLocaleDateString('en-IN')}</b></span>
     <span class="pill">📅 Period: <b>${monthLbl}</b></span>
     <span class="pill">📋 Total CAPA: <b>${total}</b></span>
     <span class="pill">✅ Closed / Verified: <b style="color:#15803d">${closed}</b></span>
@@ -520,7 +519,7 @@ window.printRegister = window.printPage = function() {
 <div class="sig">
   <span><b>QA Manager / Plant Head:</b> &nbsp; ____________________</span>
   <span><b>FSSAI Food Safety Supervisor:</b> &nbsp; ____________________</span>
-  <span><b>Date:</b> ${new Date().toLocaleDateString('en-IN')}</span>
+  <span><b>Date:</b> ____________________</span>
 </div>
 <script>window.onload=function(){window.print();setTimeout(function(){window.close();},800);};<\/script>
 </body></html>`;
