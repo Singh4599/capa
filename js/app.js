@@ -438,7 +438,7 @@ window.saveEntry = async function() {
 
 // ── EXCEL EXPORT ──────────────────────────────────────────────────────────────
 window.exportExcel = function() {
-  const rows = filteredRecords.length ? filteredRecords : allRecords;
+  const rows = filteredRecords.length ? filteredRecords : unitRecords();
   if (!rows.length) { alert('No records to export'); return; }
   const headers = ['Sr.No','Date','Area / Process','Product','Batch No','Non-Conformity',
     'Immediate Action','Root Cause','Preventive Action','Responsible Person','Verification','Closing Date'];
@@ -455,7 +455,7 @@ window.exportExcel = function() {
 };
 
 window.printRegister = window.printPage = function() {
-  const data = (filteredRecords && filteredRecords.length) ? filteredRecords : allRecords;
+  const data = (filteredRecords && filteredRecords.length) ? filteredRecords : unitRecords();
   if (!data || !data.length) {
     alert('No CAPA records to print.');
     return;
@@ -514,7 +514,7 @@ window.printRegister = window.printPage = function() {
   .sig{margin-top:14pt;font-size:8pt;display:flex;justify-content:space-between;padding:0 4pt}
 </style></head><body>
 <div class="hdr">
-  <h1>CAPA Register — L V Spices</h1>
+  <h1>CAPA Register — L V Spices • ${activeUnit}</h1>
   <p>Corrective &amp; Preventive Action • Spices Blending, Repacking &amp; Storage • FSSAI Audit Log</p>
   <div class="pills">
     <span class="pill">📅 Period: <b>${monthLbl}</b></span>
