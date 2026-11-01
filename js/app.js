@@ -108,6 +108,27 @@ let activeMonth = 'ALL';
 let searchQuery = '';
 let editingId = null;
 
+// ── UNIT FILTER ───────────────────────────────────────────────────────────────
+const UNIT_STORAGE_KEY = 'lv_capa_active_unit';
+let activeUnit = localStorage.getItem(UNIT_STORAGE_KEY) || 'Unit 11';
+
+window.setActiveUnit = function(unit) {
+  activeUnit = unit;
+  localStorage.setItem(UNIT_STORAGE_KEY, unit);
+  document.getElementById('unit-btn-11')?.classList.toggle('active', unit === 'Unit 11');
+  document.getElementById('unit-btn-12')?.classList.toggle('active', unit === 'Unit 12');
+  applyFilters();
+};
+
+function initUnitToggle() {
+  document.getElementById('unit-btn-11')?.classList.toggle('active', activeUnit === 'Unit 11');
+  document.getElementById('unit-btn-12')?.classList.toggle('active', activeUnit === 'Unit 12');
+}
+
+function unitRecords() {
+  return allRecords.filter(r => (r.unit || 'Unit 11') === activeUnit);
+}
+
 function seedRng(seed) {
   let s = seed; return () => { s=(s*1664525+1013904223)&0xffffffff; return (s>>>0)/0xffffffff; };
 }
@@ -163,6 +184,7 @@ function generateRecords() {
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 async function init() {
+  initUnitToggle();
   try {
     const cloudData = await loadAllRecords();
     const cloudMap = {};
@@ -188,23 +210,22 @@ function renderSidebarMonths() {
   const el = document.getElementById('sidebar-month-list');
   if (!el) return;
 
-  // Collect unique month keys from records (format: YYYY-MM)
+  const recs = unitRecords();
   const seen = new Set();
   const monthKeys = [];
-  [...allRecords].sort((a,b) => a.date.localeCompare(b.date)).forEach(r => {
+  [...recs].sort((a,b) => a.date.localeCompare(b.date)).forEach(r => {
     if (!seen.has(r.monthKey)) { seen.add(r.monthKey); monthKeys.push(r.monthKey); }
   });
-  monthKeys.reverse(); // newest first
+  monthKeys.reverse();
 
   const allBtn = `<button class="sidebar-month-btn ${activeMonth==='ALL'?'active':''}" onclick="filterMonth('ALL')">
-    All Months <span class="sidebar-month-count">${allRecords.length}</span>
+    All Months <span class="sidebar-month-count">${recs.length}</span>
   </button>`;
 
   const monthBtns = monthKeys.map(mk => {
-    const cnt = allRecords.filter(r => r.monthKey === mk).length;
+    const cnt = recs.filter(r => r.monthKey === mk).length;
     if (!cnt) return '';
-    // Get display label from first matching record
-    const sample = allRecords.find(r => r.monthKey === mk);
+    const sample = recs.find(r => r.monthKey === mk);
     const lbl = sample?.monthDisplay || mk;
     return `<button class="sidebar-month-btn ${activeMonth===mk?'active':''}" onclick="filterMonth('${mk}')">
       ${lbl} <span class="sidebar-month-count">${cnt}</span>
@@ -223,7 +244,7 @@ window.filterMonth = function(mk) {
   if (lbl) {
     if (mk === 'ALL') { lbl.textContent = 'All Months'; }
     else {
-      const sample = allRecords.find(r => r.monthKey === mk);
+      const sample = unitRecords().find(r => r.monthKey === mk);
       lbl.textContent = sample?.monthDisplay || mk;
     }
   }
@@ -232,8 +253,7 @@ window.filterMonth = function(mk) {
 // ── FILTER ────────────────────────────────────────────────────────────────────
 function applyFilter() {
   const q = searchQuery.toLowerCase();
-  filteredRecords = allRecords.filter(r => {
-    // monthKey is now 'YYYY-MM' format
+  filteredRecords = unitRecords().filter(r => {
     const inMonth = activeMonth === 'ALL' || r.monthKey === activeMonth;
     if (!q) return inMonth;
     return inMonth && (
@@ -285,18 +305,19 @@ function renderTable() {
 
 // ── STATS ─────────────────────────────────────────────────────────────────────
 function updateStats() {
+  const recs = unitRecords();
   const el = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
   const now = new Date();
-  const curMonthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`; // YYYY-MM
-  el('stat-total', allRecords.length);
-  el('stat-closed', allRecords.filter(r => r.verification?.toLowerCase().includes('clos') || r.verification?.toLowerCase().includes('complet')).length);
-  el('stat-this-month', allRecords.filter(r => r.monthKey === curMonthKey).length);
-  el('stat-persons', new Set(allRecords.map(r => r.responsiblePerson)).size);
+  const curMonthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  el('stat-total', recs.length);
+  el('stat-closed', recs.filter(r => r.verification?.toLowerCase().includes('clos') || r.verification?.toLowerCase().includes('complet')).length);
+  el('stat-this-month', recs.filter(r => r.monthKey === curMonthKey).length);
+  el('stat-persons', new Set(recs.map(r => r.responsiblePerson)).size);
   const lbl = document.getElementById('active-month-lbl');
   if (lbl) {
     if (activeMonth === 'ALL') { lbl.textContent = 'All Months'; }
     else {
-      const sample = allRecords.find(r => r.monthKey === activeMonth);
+      const sample = recs.find(r => r.monthKey === activeMonth);
       lbl.textContent = sample?.monthDisplay || activeMonth;
     }
   }
